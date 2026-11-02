@@ -37,7 +37,8 @@ class DeepSignApp(ctk.CTk):
 
         self.title("DeepSign - Traductor de Lengua de Señas Colombiana (LSC)")
         self.geometry("1000x640")
-        self.resizable(False, False)
+        self.resizable(True, True) 
+        self.after(0, lambda: self.state('zoomed'))
 
         self._cargar_recursos()
 
@@ -117,9 +118,10 @@ class DeepSignApp(ctk.CTk):
         main_container = ctk.CTkFrame(self, fg_color="transparent")
         main_container.pack(fill="both", expand=True, padx=20, pady=5)
 
-        # Panel Izquierdo: Cámara
-        left_card = ctk.CTkFrame(main_container, corner_radius=15, fg_color="#1E1E1E")
+        # Se asigna un ancho y alto fijo al panel izquierdo (Cámara) y se desactiva pack_propagate
+        left_card = ctk.CTkFrame(main_container, corner_radius=15, fg_color="#1E1E1E", width=680, height=520)
         left_card.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        left_card.pack_propagate(False)
 
         cam_title = ctk.CTkLabel(left_card, text="VISTA DE CÁMARA", text_color="white", font=("Helvetica", 14, "bold"))
         cam_title.pack(pady=(10, 2))
@@ -130,9 +132,10 @@ class DeepSignApp(ctk.CTk):
         self.video_label = ctk.CTkLabel(left_card, text="Cámara Apagada", text_color="white")
         self.video_label.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Panel Derecho: Traducción
-        right_card = ctk.CTkFrame(main_container, corner_radius=15, fg_color="#1E293B")
+        # Se asigna un ancho fijo al panel derecho (Traducción) y se desactiva pack_propagate
+        right_card = ctk.CTkFrame(main_container, corner_radius=15, fg_color="#1E293B", width=400, height=520)
         right_card.pack(side="right", fill="both", expand=True, padx=(10, 0))
+        right_card.pack_propagate(False)
 
         right_title = ctk.CTkLabel(right_card, text="TRADUCCIÓN EN TIEMPO REAL", text_color="#333333", font=("Helvetica", 14, "bold"))
         right_title.pack(pady=(15, 5))
@@ -331,16 +334,34 @@ class DeepSignApp(ctk.CTk):
         return nueva_sena
 
     def _actualizar_ui(self, img_pil, nueva_sena_detectada):
+        import time # Lo importamos aquí para asegurar que el temporizador funcione
+        
         if self.is_running:
-            ctk_img = ctk.CTkImage(light_image=img_pil, dark_image=img_pil, size=(450, 320))
+            ctk_img = ctk.CTkImage(light_image=img_pil, dark_image=img_pil, size=(780, 580))
             self.video_label.configure(image=ctk_img, text="")
             self.video_label.image = ctk_img
 
-            if nueva_sena_detectada:
-                self.texto_traduccion += f"{nueva_sena_detectada} "
-                self.text_box.insert("end", f"{nueva_sena_detectada} ")
-                self.text_box.see("end")
-                self._hablar(nueva_sena_detectada)
+            # Inicializamos la memoria y el temporizador
+            if not hasattr(self, 'ultima_sena_registrada'):
+                self.ultima_sena_registrada = ""
+                self.tiempo_ultima_sena = 0.0
+
+            tiempo_actual = time.time()
+
+            if nueva_sena_detectada and nueva_sena_detectada.lower() != "neutro":
+                # Escribe si la seña es diferente a la anterior, 
+                # O si es la misma pero ya pasaron más de 2 segundos
+                if (nueva_sena_detectada != self.ultima_sena_registrada) or (tiempo_actual - self.tiempo_ultima_sena > 2.0):
+                    self.texto_traduccion += f"{nueva_sena_detectada} "
+                    self.text_box.insert("end", f"{nueva_sena_detectada} ")
+                    self.text_box.see("end")
+                    self._hablar(nueva_sena_detectada)
+                    
+                    # Actualizamos la memoria y el reloj
+                    self.ultima_sena_registrada = nueva_sena_detectada
+                    self.tiempo_ultima_sena = tiempo_actual
+
+            # Eliminamos el 'else' problemático para que los parpadeos de cámara no afecten
 
             porcentaje = int(self.confianza_actual * 100)
             self.progressbar.set(self.confianza_actual)
