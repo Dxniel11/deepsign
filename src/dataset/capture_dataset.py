@@ -13,7 +13,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "../../"))
 DATASET_PATH = os.path.join(PROJECT_ROOT, "data", "raw")
 MODEL_TASK_PATH = os.path.join(PROJECT_ROOT, "models", "hand_landmarker.task")
 
-SEÑA_ACTUAL = "neutro"  
+SEÑA_ACTUAL = "buenos dias"  
 GUARDAR_PATH = os.path.join(DATASET_PATH, SEÑA_ACTUAL)
 FRAMES_POR_SEÑA = 30  
 
