@@ -258,7 +258,7 @@ class DeepSignApp(ctk.CTk):
         options = HandLandmarkerOptions(
             base_options=BaseOptions(model_asset_path=MODEL_TASK_PATH),
             running_mode=mp.tasks.vision.RunningMode.VIDEO,
-            num_hands=1,
+            num_hands=2, # <-- CAMBIADO A 2 MANOS
             min_hand_detection_confidence=0.3,
             min_hand_presence_confidence=0.3,
             min_tracking_confidence=0.3
@@ -281,30 +281,45 @@ class DeepSignApp(ctk.CTk):
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
                 detection_result = landmarker.detect_for_video(mp_image, timestamp)
 
-                vector_frame = []
+                # <-- NUEVA LÓGICA: 63 ceros por mano por defecto
+                import numpy as np
+                mano_izq = np.zeros(63).tolist()
+                mano_der = np.zeros(63).tolist()
                 mano_detectada = False
 
                 if detection_result.hand_landmarks:
-                    mano = detection_result.hand_landmarks[0]
                     mano_detectada = True
-                    for landmark in mano:
-                        x = int(landmark.x * frame.shape[1])
-                        y = int(landmark.y * frame.shape[0])
-                        cv2.circle(rgb_frame, (x, y), 4, (0, 255, 255), -1)
-                        vector_frame.extend([landmark.x, landmark.y, landmark.z])
+                    # Recorrer las manos detectadas (pueden ser 1 o 2)
+                    for idx, mano in enumerate(detection_result.hand_landmarks):
+                        coordenadas_temp = []
+                        for landmark in mano:
+                            x = int(landmark.x * frame.shape[1])
+                            y = int(landmark.y * frame.shape[0])
+                            cv2.circle(rgb_frame, (x, y), 4, (0, 255, 255), -1)
+                            coordenadas_temp.extend([landmark.x, landmark.y, landmark.z])
+                        
+                        # Revisar si es izquierda o derecha según MediaPipe Tasks
+                        etiqueta = detection_result.handedness[idx][0].category_name
+                        if etiqueta == "Left":
+                            mano_izq = coordenadas_temp
+                        else:
+                            mano_der = coordenadas_temp
 
-                # SOLO agregar al buffer si realmente hay una mano detectada
-                if mano_detectada and len(vector_frame) == 63:
+                # Unir ambas manos para formar los 126 valores por frame
+                vector_frame = mano_izq + mano_der
+
+                # Validar que se guarde si hay manos y el tamaño es 126
+                if mano_detectada and len(vector_frame) == 126:
                     self.buffer_secuencia.append(vector_frame)
                 else:
-                    # Si retiras la mano, reseteamos el buffer e inferencia
                     self.buffer_secuencia.clear()
                     self.confianza_actual = 0.0
-                    self.sena_evaluada = "Buscando mano..."
+                    self.sena_evaluada = "Buscando manos..."
                     self.ultima_sena = ""
 
                 nueva_sena_detectada = self._procesar_inferencia()
 
+                from PIL import Image
                 img_pil = Image.fromarray(rgb_frame)
                 self.after(0, self._actualizar_ui, img_pil, nueva_sena_detectada)
 
@@ -315,20 +330,28 @@ class DeepSignApp(ctk.CTk):
     def _procesar_inferencia(self):
         nueva_sena = None
         if len(self.buffer_secuencia) == FRAMES_POR_SEÑA:
-            vector_entrada = np.array(self.buffer_secuencia).flatten().reshape(1, -1)
+            # Aplana el vector para verificar su tamaño total
+            vector_plano = np.array(self.buffer_secuencia).flatten()
 
-            probabilidades = self.modelo.predict_proba(vector_entrada)[0]
-            max_idx = np.argmax(probabilidades)
-            confianza = float(probabilidades[max_idx])
+            # Validación: Solo procesa si tiene los 3780 datos (126 puntos x frames)
+            if len(vector_plano) == 3780:
+                vector_entrada = vector_plano.reshape(1, -1)
+                
+                probabilidades = self.modelo.predict_proba(vector_entrada)[0]
+                max_idx = np.argmax(probabilidades)
+                confianza = float(probabilidades[max_idx])
 
-            self.confianza_actual = confianza
-            self.sena_evaluada = str(self.clases[max_idx]).upper()
+                self.confianza_actual = confianza
+                self.sena_evaluada = str(self.clases[max_idx]).upper()
 
-            if confianza >= UMBRAL_CONFIANZA:
-                if self.sena_evaluada != self.ultima_sena:
-                    self.ultima_sena = self.sena_evaluada
-                    nueva_sena = self.sena_evaluada
+                if confianza >= UMBRAL_CONFIANZA:
+                    if self.sena_evaluada != self.ultima_sena:
+                        self.ultima_sena = self.sena_evaluada
+                        nueva_sena = self.sena_evaluada
+                else:
+                    self.ultima_sena = ""
             else:
+                # Si el vector no es de 3780, evita el crasheo y vacía la última seña
                 self.ultima_sena = ""
         
         return nueva_sena

@@ -32,7 +32,7 @@ for idx_clase, nombre_clase in enumerate(clases):
         muestra = np.loadtxt(ruta_archivo)
         
         # Validar dimensión de 1890 características
-        if len(muestra) == 1890:
+        if len(muestra) == 3780:
             x_data.append(muestra)
             y_data.append(idx_clase)
         else:
