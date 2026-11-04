@@ -13,8 +13,8 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "../../"))
 DATASET_PATH = os.path.join(PROJECT_ROOT, "data", "raw")
 MODEL_TASK_PATH = os.path.join(PROJECT_ROOT, "models", "hand_landmarker.task")
 
-SEÑA_ACTUAL = "buenos dias"  
-GUARDAR_PATH = os.path.join(DATASET_PATH, SEÑA_ACTUAL)
+SENA_ACTUAL = input("Escribe el nombre de la seña a grabar: ").strip().lower()
+GUARDAR_PATH = os.path.join(DATASET_PATH, SENA_ACTUAL)
 FRAMES_POR_SEÑA = 30  
 
 if not os.path.exists(GUARDAR_PATH):
@@ -38,7 +38,7 @@ contador_muestras = len([f for f in os.listdir(GUARDAR_PATH) if f.endswith('.txt
 last_timestamp = 0
 
 with HandLandmarker.create_from_options(options) as landmarker:
-    print(f"\n[INFO] CAPTURA DE SEÑA: '{SEÑA_ACTUAL.upper()}' (126 coords por frame)")
+    print(f"\n[INFO] CAPTURA DE SEÑA: '{SENA_ACTUAL.upper()}' (126 coords por frame)")
     print("Presiona ESPACIO para grabar. Presiona 'Q' para salir.\n")
     
     grabando = False
@@ -86,7 +86,7 @@ with HandLandmarker.create_from_options(options) as landmarker:
                 print(f"[OK] Muestra {contador_muestras} guardada ({len(vector_plano)} valores).")
                 secuencia_frames = []
 
-        cv2.putText(frame, f"Sena: {SEÑA_ACTUAL.upper()} | Muestras: {contador_muestras}", (10, 30), 
+        cv2.putText(frame, f"Sena: {SENA_ACTUAL.upper()} | Muestras: {contador_muestras}", (10, 30), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         
         if not grabando:
