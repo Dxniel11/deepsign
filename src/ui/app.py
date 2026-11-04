@@ -7,6 +7,7 @@ os.environ['ABSL_LOGGING_MIN_LOG_LEVEL'] = '3'
 import cv2
 import time
 import joblib
+import json
 import threading
 import queue
 import pyttsx3
@@ -22,7 +23,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "../../"))
 
 MODEL_PKL_PATH = os.path.join(PROJECT_ROOT, "models", "modelo_lsc.pkl")
-CLASSES_NPY_PATH = os.path.join(PROJECT_ROOT, "data", "processed", "clases.npy")
+CLASSES_JSON_PATH = os.path.join(PROJECT_ROOT, "data", "processed", "labels.json")
 MODEL_TASK_PATH = os.path.join(PROJECT_ROOT, "models", "hand_landmarker.task")
 
 FRAMES_POR_SEÑA = 30
@@ -65,14 +66,15 @@ class DeepSignApp(ctk.CTk):
 
     def _cargar_recursos(self):
         for path, nombre in [(MODEL_PKL_PATH, "modelo_lsc.pkl"),
-                             (CLASSES_NPY_PATH, "clases.npy"),
+                             (CLASSES_JSON_PATH, "labels.json"),
                              (MODEL_TASK_PATH, "hand_landmarker.task")]:
             if not os.path.exists(path):
                 print(f"[ERROR CRÍTICO] No se encontró '{nombre}' en:\n  -> {path}")
                 exit(1)
 
         self.modelo = joblib.load(MODEL_PKL_PATH)
-        self.clases = np.load(CLASSES_NPY_PATH)
+        with open(CLASSES_JSON_PATH, "r", encoding="utf-8") as f:
+            self.clases = json.load(f)
 
     def _bucle_tts(self):
         """ Bucle en hilo secundario nativo de Windows para voz (SAPI5) sin bloqueos. """
@@ -259,9 +261,9 @@ class DeepSignApp(ctk.CTk):
             base_options=BaseOptions(model_asset_path=MODEL_TASK_PATH),
             running_mode=mp.tasks.vision.RunningMode.VIDEO,
             num_hands=2, # <-- CAMBIADO A 2 MANOS
-            min_hand_detection_confidence=0.3,
-            min_hand_presence_confidence=0.3,
-            min_tracking_confidence=0.3
+            min_hand_detection_confidence=0.8,
+            min_hand_presence_confidence=0.8,
+            min_tracking_confidence=0.8
         )
 
         with HandLandmarker.create_from_options(options) as landmarker:
@@ -342,7 +344,7 @@ class DeepSignApp(ctk.CTk):
                 confianza = float(probabilidades[max_idx])
 
                 self.confianza_actual = confianza
-                self.sena_evaluada = str(self.clases[max_idx]).upper()
+                self.sena_evaluada = str(self.clases[str(max_idx)]).upper()
 
                 if confianza >= UMBRAL_CONFIANZA:
                     if self.sena_evaluada != self.ultima_sena:
