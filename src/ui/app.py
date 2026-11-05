@@ -1,5 +1,6 @@
 #deepsign/src/ui/app.py
 import os
+import sys
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['GLOG_minloglevel'] = '3'
 os.environ['ABSL_LOGGING_MIN_LOG_LEVEL'] = '3'
@@ -70,7 +71,7 @@ class DeepSignApp(ctk.CTk):
                              (MODEL_TASK_PATH, "hand_landmarker.task")]:
             if not os.path.exists(path):
                 print(f"[ERROR CRÍTICO] No se encontró '{nombre}' en:\n  -> {path}")
-                exit(1)
+                sys.exit()
 
         self.modelo = joblib.load(MODEL_PKL_PATH)
         with open(CLASSES_JSON_PATH, "r", encoding="utf-8") as f:
